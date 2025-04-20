@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 //user schema to determine type of data we want to store
 const userSchema = mongoose.Schema(
     {
-        name: String,
+        fullName: String,
         email: {
             type: String,
             required: true,
@@ -28,6 +28,10 @@ const userSchema = mongoose.Schema(
         },
         resetPasswordToken: String,
 		resetPasswordExpiresAt: Date,
+        image: {
+            type: String,
+            default: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png'
+        },
         role: {
             type: String,
             enum: ['user', 'admin', 'nurse', 'superadmin', 'patient'],

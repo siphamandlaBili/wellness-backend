@@ -1,8 +1,8 @@
 import { User } from '../models/userModel.js'
 import { generateTokenAndSetCookie } from '../utils/generateTokenAndSetCookie.js';
-import { sendEmail } from '../utils/sendEmail.js';
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
+import { sendEmail } from '../utils/sendEmail.js';
 import { sendWelcomeEmail ,resetPasswordEmail,passwordResetSuccessEmail} from '../utils/EmailTemplate.js';
 // import { verificationEmailContent } from '../utils/emailTemplates.js';
 
@@ -74,7 +74,7 @@ export const register = async (req, res) => {
             text: 'verification email',
             html: `${sendWelcomeEmail(fullName,role, process.env.SENDGRID_DEFAULT_FROM,email,password)}`,
         });
-        res.status(201).json({ success: true, message: 'user registered successfully', user: { ...user._doc, password: null } });
+        res.status(201).json({ success: true, message: 'user registered successfully', user: { ...user._doc, password: null} });
     } catch (error) {
         res.status(404).json({ success: false, message: error.message })
     }

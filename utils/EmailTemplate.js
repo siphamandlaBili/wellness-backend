@@ -118,3 +118,69 @@ export const sendWelcomeEmail = (name, role, from, email, password) => {
       </div>
     `;
   };
+
+  
+ export const sendEventCreateAlert = (eventCode, eventName, eventLocation, eventDate) => {
+    const formattedDate = new Date(eventDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+  
+    return `
+      <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 30px; background: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 25px;">
+          <h1 style="color: #1e293b; margin: 0; font-size: 24px;">New Event Created ,Waiting For Your Response</h1>
+          <p style="color: #64748b; margin: 5px 0 0; font-size: 14px;">Event Code: ${eventCode}</p>
+        </div>
+  
+        <div style="margin-bottom: 25px;">
+          <h2 style="color: #2563eb; margin: 0 0 15px; font-size: 20px;">${eventName}</h2>
+          
+          <div style="background: #f8fafc; padding: 15px; border-radius: 6px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #475569; width: 30%;">Location:</td>
+                <td style="padding: 8px 0; color: #1e293b; font-weight: 500;">${eventLocation}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #475569;">Date & Time:</td>
+                <td style="padding: 8px 0; color: #1e293b; font-weight: 500;">${formattedDate}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #475569;">Event Code:</td>
+                <td style="padding: 8px 0; color: #1e293b; font-weight: 500;">${eventCode}</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+  
+        <div style="background: #eff6ff; padding: 15px; border-radius: 6px; margin-bottom: 25px;">
+          <h3 style="color: #2563eb; margin: 0 0 12px; font-size: 16px;">Next Steps:</h3>
+          <ul style="margin: 0; padding-left: 20px; color: #1e293b;">
+            <li>Review event details</li>
+            <li>Share event code with participants</li>
+            <li>Prepare required materials</li>
+          </ul>
+        </div>
+  
+        <div style="text-align: center; margin-top: 25px;">
+          <a href="#" style="background-color: #2563eb; color: white; padding: 12px 25px; 
+            text-decoration: none; border-radius: 5px; display: inline-block; 
+            font-weight: 500; font-size: 14px;">View Event Dashboard</a>
+        </div>
+  
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+          <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
+            This is an automated notification. Please do not reply to this email.<br>
+            Need assistance? Contact our support team at 
+            <a href="mailto:support@yourevent.com" style="color: #2563eb; text-decoration: none;">support@yourevent.com</a>
+          </p>
+        </div>
+      </div>
+    `;
+  };
