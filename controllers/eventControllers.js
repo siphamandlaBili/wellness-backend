@@ -141,3 +141,18 @@ export const getUserEvents = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const getPastEvents = async (req,res)=>{
+ try {
+  const pastEvents = await Event.find({ eventDate: { $lt: new Date() } })
+  
+  if(!pastEvents){
+    return res.status(404).json({success:false,message:"no past events found"})
+  }
+ 
+  res.status(200).json({success:true,pastEvents})
+
+ } catch (error) {
+  res.status(404).json({success:false,message:error.message})
+ }
+}
