@@ -1,7 +1,11 @@
 import { Event } from '../models/eventModel.js';
 import { sendEmail } from '../utils/sendEmail.js';
-import { sendEventCreateAlert} from '../utils/EmailTemplate.js';
+import { sendEventCreateAlert,eventRejectedEmail,eventAcceptedEmail} from '../utils/EmailTemplate.js';
+import mongoose from "mongoose";
+import { User } from '../models/userModel.js';
 
+
+// create event/ event enquiry
 export const createEvent = async (req, res) => {
   try {
     const user = req.user;
@@ -54,6 +58,7 @@ export const createEvent = async (req, res) => {
   }
 };
 
+//get all events ,admin
 export const getEvents = async (req, res) => {
   try {
     const { status } = req.query;
@@ -69,6 +74,7 @@ export const getEvents = async (req, res) => {
   }
 };
 
+//get event details, for each event
 export const getEventDetails = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id)
@@ -89,10 +95,12 @@ export const getEventDetails = async (req, res) => {
   }
 };
 
+//update event status to rejected or accepted
 export const updateEventStatus = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id);
-
+    const event = await Event.findById(req.params.id)
+      .populate('user', 'email firstName lastName') // Populate user details
+      .exec();
 
     if (!event) {
       return res.status(404).json({ success: false, message: 'Event not found' });
@@ -100,37 +108,79 @@ export const updateEventStatus = async (req, res) => {
 
     const { status, reason } = req.body;
 
+    // Validate status
     if (status && !['Accepted', 'Rejected'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status value' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid status. Allowed values: Accepted, Rejected' 
+      });
     }
 
-    // Update status
-    if (status) event.status = status;
+    // Validate rejection reason
+    if (status === 'Rejected' && (!reason || reason.trim().length < 10)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Rejection reason must be at least 10 characters' 
+      });
+    }
 
-    // If status is "Rejected", then reason is required
-    if (status === 'Rejected') {
-      if (!reason || reason.trim() === '') {
-        return res.status(400).json({ success: false, message: 'Reason is required when rejecting an event' });
+    // Update event properties
+    event.status = status || event.status;
+    event.reason = status === 'Rejected' ? reason : '';
+
+    const updatedEvent = await event.save();
+
+    // Send email notifications
+    if (['Accepted', 'Rejected'].includes(status)) {
+      try {
+        if (!event.user?.email) {
+          throw new Error('No associated user email found');
+        }
+
+        const emailContent = status === 'Accepted'
+          ? eventAcceptedEmail(
+              event.eventCode,
+              event.eventName,
+              event.eventLocation,
+              event.eventDate
+            )
+          : eventRejectedEmail(
+              event.eventCode,
+              event.eventName,
+              event.eventLocation,
+              event.eventDate,
+              event.reason
+            );
+
+        await sendEmail({
+          to: event.user.email,
+          subject: `Event ${status}: ${event.eventName}`,
+          text: `Your event "${event.eventName}" has been ${status.toLowerCase()}.`,
+          html: emailContent,
+        });
+
+        console.log(`Notification email sent to ${event.user.email}`);
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError.message);
+        // Consider adding failed email handling/retry logic here
       }
-      event.reason = reason;
     }
-
-    if (status == "Accepted") {
-      event.reason = "";
-    }
-
-    await event.save();
 
     res.status(200).json({
       success: true,
-      message: 'Event status updated',
-      event: { ...event._doc, user: req.user._id }
+      message: `Event ${status ? 'status updated' : 'updated'}`,
+      event: updatedEvent
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Error updating event status:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Internal server error' 
+    });
   }
 };
 
+//get specific user events
 export const getUserEvents = async (req, res) => {
   try {
     const events = await Event.find({ user: req.user._id })
@@ -142,6 +192,7 @@ export const getUserEvents = async (req, res) => {
   }
 };
 
+//get all past events
 export const getPastEvents = async (req,res)=>{
  try {
   const pastEvents = await Event.find({ eventDate: { $lt: new Date() } })
@@ -156,3 +207,188 @@ export const getPastEvents = async (req,res)=>{
   res.status(404).json({success:false,message:error.message})
  }
 }
+
+//assign an event to a nurse
+export const assignEventToNurse = async (req, res) => {
+  try {
+    const { nurseId } = req.body;
+    const {eventId} = req.body;
+
+    // Validate inputs
+    if (!mongoose.Types.ObjectId.isValid(nurseId)) {
+      return res.status(400).json({ success: false, message: 'Invalid nurse ID' });
+    }
+
+    // Get event and nurse
+    const event = await Event.findById(eventId);
+    const nurse = await User.findById(nurseId);
+
+    // Check existence and permissions
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    if(event.status!=="Accepted"){
+      res.status(404).json({ success: false, message: 'Only approved events can be assigned to nurse' });
+    }
+    
+    if (!nurse || nurse.role !== 'nurse') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid nurse or user is not a nurse' 
+      });
+    }
+
+    // Update assignment
+    event.assignedNurse = nurseId;
+    await event.save();
+    try {
+      await sendEmail({
+        to: nurse.email,
+        subject: `New Event Assignment: ${event.eventName}`,
+        text: `You've been assigned to manage ${event.eventName} (${event.eventCode}).`,
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2 style="color: #2d3748;">New Event Assignment</h2>
+            <p>You've been assigned to manage:</p>
+            <div style="background: #f7fafc; padding: 15px; border-radius: 8px;">
+              <p><strong>Event:</strong> ${event.eventName}</p>
+              <p><strong>Code:</strong> ${event.eventCode}</p>
+              <p><strong>Date:</strong> ${new Date(event.eventDate).toLocaleDateString()}</p>
+              <p><strong>Location:</strong> ${event.eventLocation}</p>
+            </div>
+          </div>
+        `
+      });
+    } catch (emailError) {
+      console.error('Failed to send assignment email:', emailError);
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Event successfully assigned to nurse',
+      event: {
+        ...event._doc,
+        assignedNurse: {
+          _id: nurse._id,
+          fullName: nurse.fullName,
+          email: nurse.email
+        }
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Server error during assignment' 
+    });
+  }
+};
+
+// Get events assigned to current nurse
+export const getAssignedNurseEvents = async (req, res) => {
+  try {
+    if (req.user.role !== 'nurse') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Only nurses can view assigned events' 
+      });
+    }
+
+    const events = await Event.find({ assignedNurse: req.user._id })
+      .populate('user', 'fullName email phone')
+      .sort('-eventDate');
+
+    if (!events.length) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No assigned events found' 
+      });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      count: events.length,
+      events 
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
+// Get all events with assigned nurses (for admin)
+export const getEventsWithAssignments = async (req, res) => {
+  try {
+    const events = await Event.find()
+      .populate('user', 'fullName email')
+      .populate('assignedNurse', 'fullName email phone')
+      .sort('-createdAt');
+
+    const filteredEvents = events.filter(event => event.assignedNurse);
+
+    res.status(200).json({ 
+      success: true,
+      count: filteredEvents.length,
+      events: filteredEvents 
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
+// Add to controllers/eventControllers.js
+export const getNurseNextEvent = async (req, res) => {
+  try {
+    if (req.user.role !== 'nurse') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only nurses can access this endpoint'
+      });
+    }
+
+    const today = new Date().setHours(0, 0, 0, 0);
+    const nurseId = req.user._id;
+
+    // Find closest upcoming or today's event
+    const events = await Event.find({
+      assignedNurse: nurseId,
+      eventDate: { $gte: today }
+    })
+    .populate('user', 'fullName email phone')
+    .sort('eventDate')
+    .limit(1);
+
+    if (events.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No upcoming events found'
+      });
+    }
+
+    const event = events[0];
+    const now = new Date();
+    const isToday = event.eventDate.toDateString() === now.toDateString();
+
+    res.status(200).json({
+      success: true,
+      event: {
+        ...event._doc,
+        timingStatus: isToday ? 'Happening Today' : 'Upcoming'
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

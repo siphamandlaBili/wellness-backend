@@ -6,6 +6,11 @@ const eventSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  assignedNurse: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  timingStatus:String,
   eventCode: {
     type: String,
     required: true,

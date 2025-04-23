@@ -4,6 +4,10 @@ import mongoose from "mongoose";
 const userSchema = mongoose.Schema(
     {
         fullName: String,
+        assignedEvents: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Event'
+          }],
         email: {
             type: String,
             required: true,

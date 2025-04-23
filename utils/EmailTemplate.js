@@ -184,3 +184,97 @@ export const sendWelcomeEmail = (name, role, from, email, password) => {
       </div>
     `;
   };
+
+  export const eventAcceptedEmail = (eventCode, eventName, eventLocation, eventDate) => {
+    const formattedDate = new Date(eventDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+  
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="background-color: #48bb78; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
+            <svg style="width: 30px; height: 30px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <h1 style="color: #2d3748;">Event Accepted: ${eventName}</h1>
+          <p style="color: #4a5568;">Event Code: ${eventCode}</p>
+        </div>
+  
+        <div style="background-color: #f7fafc; padding: 16px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="color: #2d3748; margin-top: 0;">Event Details</h3>
+          <p><strong>📍 Location:</strong> ${eventLocation}</p>
+          <p><strong>📅 Date & Time:</strong> ${formattedDate}</p>
+          <p><strong>✅ Status:</strong> Approved</p>
+        </div>
+  
+        <p style="font-size: 16px; color: #4a5568;">
+          Your event has been approved and is now active. Participants can register using the event code.
+        </p>
+  
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+          <p style="font-size: 14px; color: #718096;">
+            Need to make changes? Contact our support team at
+            <a href="mailto:eventsupport@example.com" style="color: #4299e1; text-decoration: none;">
+              eventsupport@example.com
+            </a>
+          </p>
+        </div>
+      </div>
+    `;
+  };
+
+  export const eventRejectedEmail = (eventCode, eventName, eventLocation, eventDate, reason) => {
+    const formattedDate = new Date(eventDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+  
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="background-color: #f56565; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
+            <svg style="width: 30px; height: 30px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </div>
+          <h1 style="color: #2d3748;">Event Rejected: ${eventName}</h1>
+          <p style="color: #4a5568;">Event Code: ${eventCode}</p>
+        </div>
+  
+        <div style="background-color: #f7fafc; padding: 16px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="color: #2d3748; margin-top: 0;">Event Details</h3>
+          <p><strong>📍 Location:</strong> ${eventLocation}</p>
+          <p><strong>📅 Date & Time:</strong> ${formattedDate}</p>
+          <p><strong>❌ Status:</strong> Rejected</p>
+          <p><strong>📝 Reason:</strong> ${reason}</p>
+        </div>
+  
+        <p style="font-size: 16px; color: #4a5568;">
+          Please review the rejection reason and resubmit your event with the necessary changes.
+        </p>
+  
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+          <p style="font-size: 14px; color: #718096;">
+            Need assistance? Contact our support team at
+            <a href="mailto:eventsupport@example.com" style="color: #4299e1; text-decoration: none;">
+              eventsupport@example.com
+            </a>
+          </p>
+        </div>
+      </div>
+    `;
+  };
+  
