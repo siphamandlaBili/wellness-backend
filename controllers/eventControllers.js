@@ -3,6 +3,7 @@ import { sendEmail } from '../utils/sendEmail.js';
 import { sendEventCreateAlert,eventRejectedEmail,eventAcceptedEmail} from '../utils/EmailTemplate.js';
 import mongoose from "mongoose";
 import { User } from '../models/userModel.js';
+import { PatientFile } from '../models/patientFileModel.js';
 
 
 // create event/ event enquiry
@@ -10,26 +11,13 @@ export const createEvent = async (req, res) => {
   try {
     const user = req.user;
     if (user.role !== 'user') {
-      return res.status(403).json({ success: false, message: 'Only regular users can create events' });
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Only regular users can create events' 
+      });
     }
 
-    const { clientName, clientEmail, clientPhone, eventName, eventType, eventDate, eventLocation, numberOfAttendees, additionalNotes } = req.body;
-
-    // Generate unique event code
-    let eventCode, isUnique = false;
-    while (!isUnique) {
-      const abbrev = eventType.slice(0, 2).toUpperCase().padEnd(2, 'X');
-      const datePart = new Date(eventDate).toISOString().slice(0, 10).replace(/-/g, '');
-      const randomPart = Math.floor(1000 + Math.random() * 9000);
-      eventCode = `${abbrev}-${datePart}-${randomPart}`;
-
-      const existingEvent = await Event.findOne({ eventCode });
-      if (!existingEvent) isUnique = true;
-    }
-
-    const event = await Event.create({
-      user: user._id,
-      eventCode,
+    const { 
       clientName,
       clientEmail,
       clientPhone,
@@ -38,23 +26,56 @@ export const createEvent = async (req, res) => {
       eventDate,
       eventLocation,
       numberOfAttendees,
-      additionalNotes
+      additionalNotes,
+      referredPatients = [] // New field
+    } = req.body;
+
+    // Validate referred patients exist
+    const existingPatients = await PatientFile.find({
+      _id: { $in: referredPatients }
     });
 
-    await sendEmail({
-      to: 'azilebili@gmail.com',
-      subject: 'new event',
-      text: 'new event received',
-      html: `${sendEventCreateAlert(event.eventCode,event.eventName,event.eventLocation,event.eventDate)}`,
-  });
+    if (existingPatients.length !== referredPatients.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'One or more referred patients not found'
+      });
+    }
+
+    // Create event with referrals
+    const event = await Event.create({
+      user: user._id,
+      clientName,
+      clientEmail,
+      clientPhone,
+      eventName,
+      eventType,
+      eventDate,
+      eventLocation,
+      numberOfAttendees,
+      additionalNotes,
+      referredPatients,
+      eventCode:2
+    });
+
     res.status(201).json({
       success: true,
-      message: 'Event created successfully',
-      event: { ...event._doc, status: 'Pending' }
+      message: 'Event created',
+      event: {
+        ...event._doc,
+        referredPatients: existingPatients.map(p => ({
+          _id: p._id,
+          name: `${p.personalInfo.fullName} ${p.personalInfo.surname}`,
+          idNumber: p.personalInfo.idNumber
+        }))
+      }
     });
 
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    res.status(400).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 };
 
@@ -78,20 +99,41 @@ export const getEvents = async (req, res) => {
 export const getEventDetails = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id)
+      .populate({
+        path: 'referredPatients',
+        select: 'personalInfo medicalInfo',
+        populate: {
+          path: 'nurse',
+          select: 'fullName email'
+        }
+      })
       .populate('user', 'fullName email phone role');
 
     if (!event) {
-      return res.status(404).json({ success: false, message: 'Event not found' });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Event not found' 
+      });
     }
 
-    // Authorization check
-    if (req.user.role !== 'admin' && !event.user._id.equals(req.user._id)) {
-      return res.status(403).json({ success: false, message: 'Unauthorized access' });
-    }
+    res.status(200).json({
+      success: true,
+      event: {
+        ...event._doc,
+        referredPatients: event.referredPatients.map(p => ({
+          _id: p._id,
+          name: `${p.personalInfo.fullName} ${p.personalInfo.surname}`,
+          idNumber: p.personalInfo.idNumber,
+          nurse: p.nurse
+        }))
+      }
+    });
 
-    res.status(200).json({ success: true, event });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 };
 

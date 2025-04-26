@@ -3,6 +3,8 @@ import connectToDb from './database/dbConnection.js';
 import authRoutes from './routes/auth.js'
 import eventRoutes from './routes/eventRoutes.js'
 import profileRoutes from './routes/profileRoutes.js';
+import patientsRoutes from './routes/patientsRoutes.js'
+import refferalRoutes from './routes/refferalRoutes.js'
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -23,7 +25,8 @@ app.use(cookieParser());
 app.use('/api/v1',authRoutes)
 app.use('/api/v1/events',eventRoutes)
 app.use('/api/v1/profile', profileRoutes);
-
+app.use('/api/v1/patients', patientsRoutes);
+app.use('/api/v1/refferals', refferalRoutes);
 
 //port number, mongo_uri
 const port = process.env.PORT;

@@ -10,6 +10,14 @@ const eventSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  referredPatients: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PatientFile'
+  }],
+  registeredPatients: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PatientFile'
+  }],
   timingStatus:String,
   eventCode: {
     type: String,
