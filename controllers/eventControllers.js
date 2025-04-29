@@ -138,17 +138,18 @@ export const getEventDetails = async (req, res) => {
 };
 
 //update event status to rejected or accepted
+
 export const updateEventStatus = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id)
-      .populate('user', 'email firstName lastName') // Populate user details
+      .populate('user', 'email firstName lastName')
       .exec();
 
     if (!event) {
       return res.status(404).json({ success: false, message: 'Event not found' });
     }
 
-    const { status, reason } = req.body;
+    const { status, reason, invoiceItems } = req.body;
 
     // Validate status
     if (status && !['Accepted', 'Rejected'].includes(status)) {
@@ -158,17 +159,44 @@ export const updateEventStatus = async (req, res) => {
       });
     }
 
-    // Validate rejection reason
-    if (status === 'Rejected' && (!reason || reason.trim().length < 10)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Rejection reason must be at least 10 characters' 
-      });
+    // Validate rejection
+    if (status === 'Rejected') {
+      if (!reason || reason.trim().length < 10) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Rejection reason must be at least 10 characters' 
+        });
+      }
+      event.reason = reason;
     }
 
-    // Update event properties
-    event.status = status || event.status;
-    event.reason = status === 'Rejected' ? reason : '';
+    // Validate acceptance with invoice items
+    if (status === 'Accepted') {
+      if (!invoiceItems || !Array.isArray(invoiceItems) || invoiceItems.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'At least one invoice item is required for acceptance' 
+        });
+      }
+
+      const invalidItems = invoiceItems.some(item => 
+        !item.description?.trim() || !item.amount?.trim()
+      );
+
+      if (invalidItems) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'All invoice items must have description and amount' 
+        });
+      }
+
+      event.invoiceItems = invoiceItems;
+    }
+
+    // Update status if provided
+    if (status) {
+      event.status = status;
+    }
 
     const updatedEvent = await event.save();
 
@@ -184,7 +212,8 @@ export const updateEventStatus = async (req, res) => {
               event.eventCode,
               event.eventName,
               event.eventLocation,
-              event.eventDate
+              event.eventDate,
+              event.invoiceItems
             )
           : eventRejectedEmail(
               event.eventCode,

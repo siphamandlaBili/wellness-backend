@@ -18,7 +18,7 @@ const eventSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PatientFile'
   }],
-  timingStatus:String,
+  timingStatus: String,
   eventCode: {
     type: String,
     required: true,
@@ -62,7 +62,17 @@ const eventSchema = new mongoose.Schema({
     enum: ['Pending', 'Accepted', 'Rejected'],
     default: 'Pending'
   },
-  reason:String
+  reason: String,
+  invoiceItems: [{
+    description: {
+      type: String,
+      required: true
+    },
+    amount: {
+      type: String,
+      required: true
+    }
+  }]
 }, { timestamps: true });
 
 export const Event = mongoose.model('Event', eventSchema);

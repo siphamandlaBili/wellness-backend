@@ -7,6 +7,7 @@ import patientsRoutes from './routes/patientsRoutes.js'
 import refferalRoutes from './routes/refferalRoutes.js'
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import cors from "cors";
 dotenv.config();
 
 //express instance/server
@@ -21,6 +22,14 @@ app.get('/health', (req, res) => {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(cookieParser());
+app.use(express.json());
+app.use(
+  cors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+  })
+);
 
 app.use('/api/v1',authRoutes)
 app.use('/api/v1/events',eventRoutes)
