@@ -56,7 +56,7 @@ export const createEvent = async (req, res) => {
       numberOfAttendees,
       additionalNotes,
       referredPatients,
-      eventCode // Use eventCode from input
+      eventCode
     });
 
     res.status(201).json({
