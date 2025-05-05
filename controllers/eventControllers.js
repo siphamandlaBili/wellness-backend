@@ -289,7 +289,7 @@ export const assignEventToNurse = async (req, res) => {
     const { nurseId, eventId, action = 'assign' } = req.body;
 
     // Validate inputs
-    if (!mongoose.Types.ObjectId.isValid(nurseId) {
+    if (!mongoose.Types.ObjectId.isValid(nurseId)) {
       return res.status(400).json({ success: false, message: 'Invalid nurse ID' });
     }
 
