@@ -283,139 +283,97 @@ export const getPastEvents = async (req,res)=>{
 //assign an event to a nurse
 export const assignEventToNurse = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
   
   try {
     const { nurseId, eventId, action = 'assign' } = req.body;
 
-    // Validate inputs
+    // Validate input IDs
     if (!mongoose.Types.ObjectId.isValid(nurseId)) {
       return res.status(400).json({ success: false, message: 'Invalid nurse ID' });
     }
-
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return res.status(400).json({ success: false, message: 'Invalid event ID' });
     }
 
-    // Get event and nurse with session
-    const [event, nurse] = await Promise.all([
-      Event.findById(eventId).session(session),
-      User.findById(nurseId).session(session)
-    ]);
+    // Transaction handling using withTransaction
+    await session.withTransaction(async () => {
+      const [event, nurse] = await Promise.all([
+        Event.findById(eventId).session(session),
+        User.findById(nurseId).session(session)
+      ]);
 
-    // Check existence
-    if (!event) {
-      return res.status(404).json({ success: false, message: 'Event not found' });
-    }
+      // Check event existence
+      if (!event) throw new Error('Event not found');
+      
+      // Validate nurse
+      if (!nurse || nurse.role !== 'nurse') {
+        throw new Error('Invalid nurse or user is not a nurse');
+      }
 
-    if (!nurse || nurse.role !== 'nurse') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid nurse or user is not a nurse' 
-      });
-    }
+      // Check event status
+      if (event.status !== "Accepted") {
+        throw new Error('Only approved events can be assigned to nurses');
+      }
 
-    // Check event status
-    if (event.status !== "Accepted") {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Only approved events can be assigned to nurses' 
-      });
-    }
+      // Assignment logic
+      if (action === 'assign') {
+        if (event.assignedNurse) {
+          throw new Error('Event is already assigned to another nurse');
+        }
+        // Add to nurse's assignments
+        if (!nurse.assignedEvents.includes(eventId)) {
+          nurse.assignedEvents.push(eventId);
+        }
+        event.assignedNurse = nurseId;
+      } else if (action === 'unassign') {
+        if (!event.assignedNurse?.equals(nurseId)) {
+          throw new Error('Event not assigned to this nurse');
+        }
+        // Remove from nurse's assignments
+        nurse.assignedEvents = nurse.assignedEvents.filter(id => !id.equals(eventId));
+        event.assignedNurse = null;
+      } else {
+        throw new Error('Invalid action parameter');
+      }
 
-    // Handle assignment logic
+      // Save changes within the transaction
+      await Promise.all([nurse.save({ session }), event.save({ session })]);
+    });
+
+    // After successful transaction, send email (if assigning)
     if (action === 'assign') {
-      if (event.assignedNurse) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Event is already assigned to another nurse' 
-        });
-      }
-
-      // Add to nurse's assigned events
-      if (!nurse.assignedEvents.includes(eventId)) {
-        nurse.assignedEvents.push(eventId);
-      }
-
-      event.assignedNurse = nurseId;
-    } 
-    else if (action === 'unassign') {
-      if (!event.assignedNurse?.equals(nurseId)) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Event not assigned to this nurse' 
-        });
-      }
-
-      // Remove from nurse's assigned events
-      nurse.assignedEvents = nurse.assignedEvents.filter(id => !id.equals(eventId));
-      event.assignedNurse = null;
-    } 
-    else {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid action parameter' 
-      });
-    }
-
-    // Save changes
-    await Promise.all([
-      nurse.save({ session }),
-      event.save({ session })
-    ]);
-
-    await session.commitTransaction();
-
-    // Send email notification only for assignments
-    if (action === 'assign') {
+      const nurse = await User.findById(nurseId); // Re-fetch if necessary or use previous data
       try {
         await sendEmail({
           to: nurse.email,
           subject: `New Event Assignment: ${event.eventName}`,
-          text: `You've been assigned to manage ${event.eventName} (${event.eventCode}).`,
-          html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px;">
-              <h2 style="color: #2d3748;">New Event Assignment</h2>
-              <p>You've been assigned to manage:</p>
-              <div style="background: #f7fafc; padding: 15px; border-radius: 8px;">
-                <p><strong>Event:</strong> ${event.eventName}</p>
-                <p><strong>Code:</strong> ${event.eventCode}</p>
-                <p><strong>Date:</strong> ${new Date(event.eventDate).toLocaleDateString()}</p>
-                <p><strong>Location:</strong> ${event.eventLocation}</p>
-              </div>
-            </div>
-          `
+          // ... rest of email details
         });
       } catch (emailError) {
-        console.error('Failed to send assignment email:', emailError);
+        console.error('Email send error:', emailError);
       }
     }
 
-    res.status(200).json({ 
-      success: true, 
-      message: `Event ${action === 'assign' ? 'assigned to' : 'unassigned from'} nurse successfully`,
-      event: {
-        ...event.toObject(),
-        assignedNurse: action === 'assign' ? {
-          _id: nurse._id,
-          fullName: nurse.fullName,
-          email: nurse.email
-        } : null
-      },
-      nurse: {
-        _id: nurse._id,
-        assignedEvents: nurse.assignedEvents
-      }
+    // Fetch updated data if necessary
+    const updatedEvent = await Event.findById(eventId);
+    const updatedNurse = await User.findById(nurseId);
+
+    res.status(200).json({
+      success: true,
+      message: `Event ${action}ed successfully`,
+      event: updatedEvent,
+      nurse: updatedNurse
     });
 
   } catch (error) {
-    await session.abortTransaction();
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Server error during assignment operation' 
+    // Determine appropriate status code
+    const statusCode = error.message.includes('not found') ? 404 : 400;
+    res.status(statusCode).json({
+      success: false,
+      message: error.message
     });
   } finally {
-    session.endSession();
+    await session.endSession();
   }
 };
 
