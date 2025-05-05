@@ -144,3 +144,30 @@ export const resetPassword= async (req,res)=>{
         res.status(404).json({ success: false, message: error.message })
     }
 }
+
+export const getAllUsers = async (req, res) => {
+    try {
+      // Authorization check - only admins can access
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Unauthorized: Admin access required' 
+        });
+      }
+  
+      // Get all users excluding sensitive fields
+      const users = await User.find({role:"nurse"}).select(
+        '-password -resetPasswordToken -resetPasswordExpiresAt'
+      );
+  
+      res.status(200).json({ 
+        success: true, 
+        users 
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+  };
