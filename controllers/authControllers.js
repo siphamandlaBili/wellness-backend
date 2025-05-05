@@ -145,7 +145,7 @@ export const resetPassword= async (req,res)=>{
     }
 }
 
-export const getAllUsers = async (req, res) => {
+export const getAllNurses = async (req, res) => {
     try {
       // Authorization check - only admins can access
       if (req.user.role !== 'admin') {
