@@ -4,90 +4,7 @@ import { User } from '../models/userModel.js';
 import bcrypt from 'bcryptjs';
 import { calculateBMI } from '../utils/bmiCalc.js';
 
-export const createAndPostPatientData = async (req, res) => {
-    try {
-        // Authorization check
-        if (!['nurse', 'admin'].includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to create patients'
-            });
-        }
 
-        const { eventId, personalInfo, medicalInfo, mentalHealthAssessment } = req.body;
-
-        // Validate required fields
-        if (!eventId || !personalInfo || !medicalInfo) {
-            return res.status(400).json({
-                success: false,
-                message: 'Missing required fields'
-            });
-        }
-
-        // Generate temporary password
-        const tempPassword = Math.random().toString(36).slice(-8);
-        const hashedPassword = await bcrypt.hash(tempPassword, 12);
-
-        // Create patient user
-        const user = new User({
-            fullName: `${personalInfo.fullName} ${personalInfo.surname}`,
-            email: personalInfo.email,
-            phone: personalInfo.phone,
-            password: hashedPassword,
-            role: 'patient',
-            passwordChangedAt: Date.now()
-        });
-
-        await user.save();
-
-        if (req.body.mentalHealthAssessment) {
-            const isValidAssessment = req.body.mentalHealthAssessment.every(item =>
-                item.question && item.answer
-            );
-
-            if (!isValidAssessment) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid mental health assessment format'
-                });
-            }
-        }
-        // Create patient file with user reference
-        const patientFile = new PatientFile({
-            user: user._id, // Critical field
-            event: eventId,
-            nurse: req.user._id,
-            personalInfo: {
-                ...personalInfo,
-                dateOfBirth: new Date(personalInfo.dateOfBirth)
-            },
-            mentalHealthAssessment,
-            medicalInfo: {
-                ...medicalInfo,
-                bmi: calculateBMI(medicalInfo.height, medicalInfo.weight)
-            }
-        });
-
-        await patientFile.save();
-
-        // Update event
-        await Event.findByIdAndUpdate(eventId, {
-            $push: { registeredPatients: patientFile._id }
-        });
-
-        res.status(201).json({
-            success: true,
-            data: patientFile
-        });
-
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-}
 
 export const getPatientsByEvent = async (req, res) => {
     try {
@@ -144,3 +61,99 @@ export const getSinglePatient =    async (req, res) => {
       });
     }
   }
+
+
+
+export const createAndPostPatientData = async (req, res) => {
+    try {
+        // Authorization check
+        if (!['nurse', 'admin'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to create patients'
+            });
+        }
+
+        const { 
+            eventId, 
+            personalInfo, 
+            medicalInfo, 
+            mentalHealthAssessment,
+            medicalAidDetails 
+        } = req.body;
+
+        // Validate required fields
+        if (!eventId || !personalInfo || !medicalInfo){
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields'
+            });
+        }
+
+        // Generate temporary password
+        const tempPassword = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(tempPassword, 12);
+
+        // Create patient user
+        const user = new User({
+            fullName: `${personalInfo.fullName} ${personalInfo.surname}`,
+            email: personalInfo.email,
+            phone: personalInfo.phone,
+            password: hashedPassword,
+            role: 'patient',
+            passwordChangedAt: Date.now()
+        });
+
+        await user.save();
+
+        // Validate mental health assessment format
+        if (mentalHealthAssessment) {
+            const isValidAssessment = mentalHealthAssessment.every(item =>
+                item.question && item.answer
+            );
+
+            if (!isValidAssessment) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid mental health assessment format'
+                });
+            }
+        }
+
+        // Create patient file with user reference
+        const patientFile = new PatientFile({
+            user: user._id,
+            event: eventId,
+            nurse: req.user._id,
+            personalInfo: {
+                ...personalInfo,
+                dateOfBirth: new Date(personalInfo.dateOfBirth)
+            },
+            mentalHealthAssessment,
+            medicalInfo: {
+                ...medicalInfo,
+                bmi: calculateBMI(medicalInfo.height, medicalInfo.weight)
+            },
+            medicalAidDetails: medicalAidDetails || {}
+        });
+
+        await patientFile.save();
+
+        // Update event
+        await Event.findByIdAndUpdate(eventId, {
+            $push: { registeredPatients: patientFile._id }
+        });
+
+        res.status(201).json({
+            success: true,
+            data: patientFile
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};

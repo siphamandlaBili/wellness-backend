@@ -38,6 +38,14 @@ const patientFileSchema = new mongoose.Schema({
     question: String,
     answer: String
   }],
+  medicalAidDetails: {
+    schemeName: String,
+    planOption: String,
+    membershipNumber: String,
+    mainMemberNames: String,
+    mainMemberAddress: String,
+    dependentCode: String
+  },
   consentSignature: String
 }, { timestamps: true });
 
