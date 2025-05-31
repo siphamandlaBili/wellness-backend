@@ -234,7 +234,7 @@ export const getEventStatistics = async (req, res) => {
     console.error("Error fetching statistics:", error);
     res.status(500).json({
       success: false,
-      message: error.message || "Internal server error"
+      message: error.message || "Internal server errors"
     });
   }
 };
