@@ -5,6 +5,7 @@ import eventRoutes from './routes/eventRoutes.js'
 import profileRoutes from './routes/profileRoutes.js';
 import patientsRoutes from './routes/patientsRoutes.js'
 import refferalRoutes from './routes/refferalRoutes.js'
+import reportRoutes from "./routes/reportRoutes.js";
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import cors from "cors";
@@ -48,6 +49,7 @@ app.use('/api/v1/events',eventRoutes)
 app.use('/api/v1/profile', profileRoutes);
 app.use('/api/v1/patients', patientsRoutes);
 app.use('/api/v1/refferals', refferalRoutes);
+app.use("/api/v1/reports", reportRoutes);
 
 //port number, mongo_uri
 const port = process.env.PORT;
