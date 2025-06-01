@@ -1,6 +1,7 @@
 import { Report } from "../models/reportModel.js";
 import { Event } from "../models/eventModel.js";
 import { PatientFile } from "../models/patientFileModel.js";
+import mongoose from "mongoose";
 import OpenAI from "openai";
 // controllers/reportController.js
 import { 
@@ -215,7 +216,7 @@ export const getEventStatistics = async (req, res) => {
       averageHba1c: calculateAverageHba1c(patients),
       averageCholesterol: calculateAverageCholesterol(patients),
       averageGlucose: calculateAverageGlucose(patients),
-      bloodPressure: calculateBloodPressureStats(patients),
+      // bloodPressure: calculateBloodPressureStats(patients),
       bmi: calculateBmiStats(patients),
       hba1c: calculateHba1cStats(patients),
       cholesterol: calculateCholesterolStats(patients),

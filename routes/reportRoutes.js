@@ -5,7 +5,7 @@ import {
   getEventReport,
   getEventStatistics // Add this
 } from "../controllers/reportController.js";
-
+import mongoose from "mongoose";
 
 import { protect } from "../middleware/authMiddleware.js";
 

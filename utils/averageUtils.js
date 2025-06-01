@@ -1,5 +1,5 @@
 // utils/averageUtils.js
-
+import mongoose from "mongoose";
 // Calculate average blood pressure (returns string format "systolic/diastolic")
 export const calculateAverageBloodPressure = (patients) => {
   let totalSystolic = 0;
