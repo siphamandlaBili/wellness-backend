@@ -72,7 +72,19 @@ const eventSchema = new mongoose.Schema({
       type: String,
       required: true
     }
-  }]
+  }],
+  medicalProfessionalsNeeded: {
+    type: [String],
+    enum: [
+      'Registered Nurses',
+      'Podiatrist',
+      'Physio',
+      'Massage Therapist',
+      'Psychology',
+      'Other'
+    ],
+    default: []
+  }
 }, { timestamps: true });
 
 export const Event = mongoose.model('Event', eventSchema);

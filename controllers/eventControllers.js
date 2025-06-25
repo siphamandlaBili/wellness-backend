@@ -27,8 +27,9 @@ export const createEvent = async (req, res) => {
       eventLocation,
       numberOfAttendees,
       additionalNotes,
-      referredPatients = [], // New field
-      eventCode // Get eventCode from request body
+      referredPatients = [],
+      eventCode,
+      medicalProfessionalsNeeded = [] // <-- Add this line
     } = req.body;
 
     // Validate referred patients exist
@@ -56,7 +57,8 @@ export const createEvent = async (req, res) => {
       numberOfAttendees,
       additionalNotes,
       referredPatients,
-      eventCode
+      eventCode,
+      medicalProfessionalsNeeded // <-- Add this line
     });
 
     res.status(201).json({
