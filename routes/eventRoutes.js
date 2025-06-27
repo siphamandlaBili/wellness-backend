@@ -13,8 +13,7 @@ import {
 } from '../controllers/eventControllers.js';
 
 
-import { protect, admin } from '../middleware/authMiddleware.js';
-
+router.get('/', protect, admin, getEvents);
 const router = express.Router();
 
 router.post('/', protect, createEvent);
