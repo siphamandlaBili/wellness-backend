@@ -11,13 +11,12 @@ import {
   getEventsWithAssignments,
   getNurseNextEvent
 } from '../controllers/eventControllers.js';
+import { protect, admin, adminOrSuperadmin } from '../middleware/authMiddleware.js';
 
-
-router.get('/', protect, admin, getEvents);
 const router = express.Router();
 
 router.post('/', protect, createEvent);
-router.get('/', protect, admin, getEvents);
+router.get('/', protect, adminOrSuperadmin, getEvents);
 router.get('/user-events', protect, getUserEvents);
 router.get('/past-events',protect, getPastEvents);
 router.get('/:id', protect, getEventDetails);
