@@ -1,7 +1,7 @@
 import express from 'express';
 import { Referral } from '../models/refferalModel.js';
 import { PatientFile } from '../models/patientFileModel.js';
-import { Event } from '../models/eventModel.js';
+import  Event  from '../models/eventModel.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();

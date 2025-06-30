@@ -1,5 +1,5 @@
 // controllers/profileController.js
-import { User } from '../models/userModel.js';
+import  User  from '../models/userModel.js';
 import cloudinary from '../utils/cloudinary.js';
 
 export const getProfile = async (req, res) => {

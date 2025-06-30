@@ -1,5 +1,5 @@
 import { Report } from "../models/reportModel.js";
-import { Event } from "../models/eventModel.js";
+import  Event  from "../models/eventModel.js";
 import { PatientFile } from "../models/patientFileModel.js";
 import mongoose from "mongoose";
 import OpenAI from "openai";

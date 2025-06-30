@@ -48,9 +48,8 @@ const eventSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
-  eventLocation: {
+  venue: {  // Changed from eventLocation to venue
     type: String,
-    required: true
   },
   numberOfAttendees: {
     type: Number,
@@ -75,4 +74,8 @@ const eventSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-export const Event = mongoose.model('Event', eventSchema);
+// Create the model
+const Event = mongoose.model('Event', eventSchema);
+
+// Export as default
+export default Event;
