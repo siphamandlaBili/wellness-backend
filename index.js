@@ -27,7 +27,7 @@ app.use(cookieParser());
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://fmp-wellness.netlify.app',
+  'https://wellness-fmp.netlify.app',
 ];
 
 app.use(
