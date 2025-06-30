@@ -83,6 +83,7 @@ export const generateEventOpinion = async (req, res) => {
       temperature: 0.7,
     });
 
+    console.log(completion)
     const generatedOpinion = completion.choices[0].message.content;
 
     // Create or update report
