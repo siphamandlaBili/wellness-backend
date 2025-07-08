@@ -2,11 +2,31 @@ import Event from "../models/eventModel.js";
 import User from "../models/userModel.js";
 import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
+import { 
+  sendEventCreateAlert, 
+  eventAcceptedEmail, 
+  eventRejectedEmail,
+  eventCreatedConfirmation,
+  nurseAssignedEmail
+} from "../utils/EmailTemplate.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
-// Create new event
+// Helper function for safe email sending
+const sendEmailSafely = async (to, subject, html) => {
+  try {
+    if (!to) return;
+    await sendEmail({ to, subject, html });
+    console.log(`Email sent to ${to}`);
+  } catch (error) {
+    console.error(`Failed to send email to ${to}:`, error.message);
+  }
+};
+
+// Create Event with email notifications
 export const createEvent = asyncHandler(async (req, res) => {
   try {
     const {
+      eventCode,
       clientName,
       clientEmail,
       clientPhone,
@@ -16,12 +36,28 @@ export const createEvent = asyncHandler(async (req, res) => {
       venue,
       numberOfAttendees,
       additionalNotes,
-      invoiceItems
+      medicalProfessionalsNeeded,
+      role
     } = req.body;
 
-    // Generate unique event code
-    const eventCode = `EVT-${Date.now().toString(36).toUpperCase()}`;
+    // Validate required fields
+    if (
+      !eventCode ||
+      !clientName ||
+      !clientEmail ||
+      !eventName ||
+      !eventType ||
+      !eventDate ||
+      !venue ||
+      !numberOfAttendees
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "All required fields must be provided"
+      });
+    }
 
+    // Create event
     const event = new Event({
       user: req.user._id,
       eventCode,
@@ -32,10 +68,11 @@ export const createEvent = asyncHandler(async (req, res) => {
       eventType,
       eventDate: new Date(eventDate),
       venue,
-      numberOfAttendees,
+      numberOfAttendees: parseInt(numberOfAttendees),
       additionalNotes,
-      invoiceItems,
-      status: 'Pending'
+      medicalProfessionalsNeeded,
+      status: 'Pending',
+      role
     });
 
     const createdEvent = await event.save();
@@ -44,6 +81,40 @@ export const createEvent = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(req.user._id, {
       $push: { createdEvents: createdEvent._id }
     });
+
+    // EMAIL 1: Confirmation to event creator
+    const userConfirmationHtml = eventCreatedConfirmation(
+      createdEvent.eventCode,
+      createdEvent.eventName,
+      createdEvent.eventDate,
+      createdEvent.venue
+    );
+    await sendEmailSafely(
+      req.user.email,
+      `Event Created: ${createdEvent.eventName}`,
+      userConfirmationHtml
+    );
+
+    // EMAIL 2: Notification to all admins/superadmins
+    const admins = await User.find({ 
+      role: { $in: ['admin', 'superadmin'] } 
+    }).select('email fullName');
+    
+    const adminNotificationHtml = sendEventCreateAlert(
+      createdEvent.eventCode,
+      createdEvent.eventName,
+      createdEvent.venue,
+      createdEvent.eventDate,
+      req.user.fullName
+    );
+    
+    for (const admin of admins) {
+      await sendEmailSafely(
+        admin.email,
+        `New Event Requires Approval: ${createdEvent.eventName}`,
+        adminNotificationHtml
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -191,8 +262,7 @@ export const getAssignedNurseEvents = async (req, res) => {
   }
 };
 
-
-
+// Assign/Unassign event to nurse with email notification
 export const assignEventToNurse = async (req, res) => {
   const session = await mongoose.startSession();
   
@@ -207,32 +277,27 @@ export const assignEventToNurse = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid event ID' });
     }
 
-    // Transaction handling using withTransaction
+    let event, nurse;
+    
+    // Transaction handling
     await session.withTransaction(async () => {
-      const [event, nurse] = await Promise.all([
+      [event, nurse] = await Promise.all([
         Event.findById(eventId).session(session),
         User.findById(nurseId).session(session)
       ]);
 
-      // Check event existence
       if (!event) throw new Error('Event not found');
-      
-      // Validate nurse
       if (!nurse || nurse.role !== 'nurse') {
         throw new Error('Invalid nurse or user is not a nurse');
       }
-
-      // Check event status
       if (event.status !== "Accepted") {
         throw new Error('Only approved events can be assigned to nurses');
       }
 
-      // Assignment logic
       if (action === 'assign') {
         if (event.assignedNurse) {
           throw new Error('Event is already assigned to another nurse');
         }
-        // Add to nurse's assignments
         if (!nurse.assignedEvents.includes(eventId)) {
           nurse.assignedEvents.push(eventId);
         }
@@ -241,44 +306,39 @@ export const assignEventToNurse = async (req, res) => {
         if (!event.assignedNurse?.equals(nurseId)) {
           throw new Error('Event not assigned to this nurse');
         }
-        // Remove from nurse's assignments
         nurse.assignedEvents = nurse.assignedEvents.filter(id => !id.equals(eventId));
         event.assignedNurse = null;
       } else {
         throw new Error('Invalid action parameter');
       }
 
-      // Save changes within the transaction
       await Promise.all([nurse.save({ session }), event.save({ session })]);
     });
 
-    // After successful transaction, send email (if assigning)
-    if (action === 'assign') {
-      const nurse = await User.findById(nurseId); // Re-fetch if necessary or use previous data
-      try {
-        await sendEmail({
-          to: nurse.email,
-          subject: `New Event Assignment: ${event.eventName}`,
-          // ... rest of email details
-        });
-      } catch (emailError) {
-        console.error('Email send error:', emailError);
-      }
+    // Send assignment email
+    if (action === 'assign' && nurse?.email) {
+      const assignmentHtml = nurseAssignedEmail(
+        event.eventCode,
+        event.eventName,
+        event.eventDate,
+        event.venue,
+        nurse.fullName
+      );
+      await sendEmailSafely(
+        nurse.email,
+        `New Event Assignment: ${event.eventName}`,
+        assignmentHtml
+      );
     }
-
-    // Fetch updated data if necessary
-    const updatedEvent = await Event.findById(eventId);
-    const updatedNurse = await User.findById(nurseId);
 
     res.status(200).json({
       success: true,
       message: `Event ${action}ed successfully`,
-      event: updatedEvent,
-      nurse: updatedNurse
+      event,
+      nurse
     });
 
   } catch (error) {
-    // Determine appropriate status code
     const statusCode = error.message.includes('not found') ? 404 : 400;
     res.status(statusCode).json({
       success: false,
@@ -289,15 +349,18 @@ export const assignEventToNurse = async (req, res) => {
   }
 };
 
-// Update event
+// Update event with email notifications
 export const updateEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id)
-      .populate('user', 'email firstName lastName')
+      .populate('user', 'email fullName')
       .exec();
 
     if (!event) {
-      return res.status(404).json({ success: false, message: 'Event not found' });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Event not found' 
+      });
     }
 
     const { status, reason, invoiceItems } = req.body;
@@ -321,7 +384,7 @@ export const updateEvent = async (req, res) => {
       event.reason = reason;
     }
 
-    // Validate acceptance with invoice items
+    // Validate acceptance
     if (status === 'Accepted') {
       if (!invoiceItems || !Array.isArray(invoiceItems) || invoiceItems.length === 0) {
         return res.status(400).json({ 
@@ -351,40 +414,30 @@ export const updateEvent = async (req, res) => {
 
     const updatedEvent = await event.save();
 
-    // Send email notifications
+    // Send status emails
     if (['Accepted', 'Rejected'].includes(status)) {
-      try {
-        if (!event.user?.email) {
-          throw new Error('No associated user email found');
-        }
-
+      if (event.user?.email) {
         const emailContent = status === 'Accepted'
           ? eventAcceptedEmail(
               event.eventCode,
               event.eventName,
-              event.eventLocation,
+              event.venue,
               event.eventDate,
               event.invoiceItems
             )
           : eventRejectedEmail(
               event.eventCode,
               event.eventName,
-              event.eventLocation,
+              event.venue,
               event.eventDate,
               event.reason
             );
 
-        await sendEmail({
-          to: event.user.email,
-          subject: `Event ${status}: ${event.eventName}`,
-          text: `Your event "${event.eventName}" has been ${status.toLowerCase()}.`,
-          html: emailContent,
-        });
-
-        console.log(`Notification email sent to ${event.user.email}`);
-      } catch (emailError) {
-        console.error('Email sending failed:', emailError.message);
-        // Consider adding failed email handling/retry logic here
+        await sendEmailSafely(
+          event.user.email,
+          `Event ${status}: ${event.eventName}`,
+          emailContent
+        );
       }
     }
 
@@ -394,7 +447,6 @@ export const updateEvent = async (req, res) => {
       event: updatedEvent
     });
   } catch (error) {
-    console.error('Error updating event status:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Internal server error' 
@@ -402,13 +454,11 @@ export const updateEvent = async (req, res) => {
   }
 };
 
-
-// Delete event
+// Delete event with email notification
 export const deleteEvent = asyncHandler(async (req, res) => {
   try {
     const eventId = req.params.id;
     
-    // Validate event ID
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return res.status(400).json({
         success: false,
@@ -417,7 +467,6 @@ export const deleteEvent = asyncHandler(async (req, res) => {
     }
 
     const event = await Event.findById(eventId);
-
     if (!event) {
       return res.status(404).json({
         success: false,
@@ -425,7 +474,7 @@ export const deleteEvent = asyncHandler(async (req, res) => {
       });
     }
 
-    // Authorization: Only event owner or admins can delete
+    // Authorization check
     const canDelete = 
       req.user.role === 'admin' ||
       req.user.role === 'superadmin' ||
@@ -438,19 +487,37 @@ export const deleteEvent = asyncHandler(async (req, res) => {
       });
     }
 
-    // Remove from assigned nurse's events
+    // Remove from nurse's assignments
     if (event.assignedNurse) {
       await User.findByIdAndUpdate(event.assignedNurse, {
         $pull: { assignedEvents: event._id }
       });
     }
 
-    // Remove from owner's created events
+    // Remove from owner's events
     await User.findByIdAndUpdate(event.user, {
       $pull: { createdEvents: event._id }
     });
 
+    const eventName = event.eventName;
+    const eventCode = event.eventCode;
+    const creatorId = event.user;
+    
     await event.deleteOne();
+
+    // Send cancellation email
+    const creator = await User.findById(creatorId);
+    if (creator?.email) {
+      await sendEmailSafely(
+        creator.email,
+        `Event Cancelled: ${eventName}`,
+        `<div>
+          <h1>Event Cancelled</h1>
+          <p>Your event "${eventName}" (${eventCode}) has been cancelled.</p>
+          <p>If this was a mistake, please contact support immediately.</p>
+        </div>`
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -473,7 +540,6 @@ export const getDashboardEvents = asyncHandler(async (req, res) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     if (req.user.role === 'admin' || req.user.role === 'superadmin') {
-      // Admins see all recent events
       events = await Event.find({
         eventDate: { $gte: thirtyDaysAgo, $lte: now }
       })
@@ -481,7 +547,6 @@ export const getDashboardEvents = asyncHandler(async (req, res) => {
       .limit(5)
       .populate('assignedNurse', 'fullName');
     } else if (req.user.role === 'nurse') {
-      // Nurses see their assigned upcoming events
       events = await Event.find({
         assignedNurse: req.user._id,
         eventDate: { $gte: now }
@@ -490,7 +555,6 @@ export const getDashboardEvents = asyncHandler(async (req, res) => {
       .limit(5)
       .populate('user', 'fullName');
     } else {
-      // Regular users see their upcoming events
       events = await Event.find({
         user: req.user._id,
         eventDate: { $gte: now }
@@ -515,8 +579,7 @@ export const getDashboardEvents = asyncHandler(async (req, res) => {
 // Get next event for nurse
 export const getNurseNextEvent = asyncHandler(async (req, res) => {
   try {
-    // Only for nurses
-    if (false) {
+    if (req.user.role !== 'nurse') {
       return res.status(400).json({
         success: false,
         message: "Only nurses can access this endpoint"
@@ -533,7 +596,6 @@ export const getNurseNextEvent = asyncHandler(async (req, res) => {
     .populate('referredPatients', 'personalInfo.fullName')
     .populate('registeredPatients', 'personalInfo.fullName');
 
-    console.log(event)
     if (!event) {
       return res.status(200).json({
         success: true,
@@ -559,14 +621,11 @@ export const getPastEvents = asyncHandler(async (req, res) => {
   try {
     let filter = { eventDate: { $lt: new Date() } };
     
-    // Role-based filtering
     if (req.user.role === 'admin' || req.user.role === 'superadmin') {
-      // Admins see all past events
+      // Admins see all
     } else if (req.user.role === 'nurse') {
-      // Nurses see their assigned past events
       filter.assignedNurse = req.user._id;
     } else {
-      // Regular users see their own past events
       filter.user = req.user._id;
     }
 

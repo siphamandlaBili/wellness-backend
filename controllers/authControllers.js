@@ -70,8 +70,8 @@ export const register = async (req, res) => {
         //send verification email
         await sendEmail({
             to: email,
-            subject: 'verification code',
-            text: 'verification email',
+            subject: 'welcome email',
+            text: 'welcome 🎉❤️',
             html: `${sendWelcomeEmail(fullName,role, process.env.SENDGRID_DEFAULT_FROM,email,password)}`,
         });
         res.status(201).json({ success: true, message: 'user registered successfully', user: { ...user._doc, password: null} });

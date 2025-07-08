@@ -79,7 +79,7 @@ export const generateEventOpinion = async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 10,
+      max_tokens: 150,
       temperature: 0.7,
     });
 

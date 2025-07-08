@@ -17,12 +17,13 @@ const patientFileSchema = new mongoose.Schema({
     required: true
   },
   personalInfo: {
-    fullName: String,
-    surname: String,
-    dateOfBirth: Date,
-    idNumber: String,
-    email: String,
-    phone: String
+    fullName: { type: String, required: true },
+    surname: { type: String, required: true },
+    dateOfBirth: { type: Date, required: true },
+    idNumber: { type: String, required: true, unique: true },
+    email: { type: String, required: true },
+    phone: { type: String, required: true },
+    sex: { type: String, enum: ['Male', 'Female', 'Other'], required: true }
   },
   medicalInfo: {
     bloodPressure: String,
@@ -30,8 +31,9 @@ const patientFileSchema = new mongoose.Schema({
     weight: Number,
     bmi: Number,
     cholesterol: Number,
-    hivStatus: String,
+    hivStatus: { type: String, enum: ['Negative', 'Positive', 'Inconclusive'] },
     glucoseLevel: Number,
+    glucoseType: { type: String, enum: ['Fasting', 'Random', 'Postprandial'] },
     hba1c: Number
   },
   mentalHealthAssessment: [{

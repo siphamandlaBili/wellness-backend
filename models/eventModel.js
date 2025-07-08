@@ -48,8 +48,9 @@ const eventSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
-  venue: {  // Changed from eventLocation to venue
+  venue: {
     type: String,
+    required: true
   },
   numberOfAttendees: {
     type: Number,
@@ -74,15 +75,12 @@ const eventSchema = new mongoose.Schema({
   }],
   medicalProfessionalsNeeded: {
     type: [String],
-    enum: [
-      'Registered Nurses',
-      'Podiatrist',
-      'Physio',
-      'Massage Therapist',
-      'Psychology',
-      'Other'
-    ],
     default: []
+  },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
   }
 }, { timestamps: true });
 
