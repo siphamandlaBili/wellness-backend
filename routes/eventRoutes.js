@@ -19,7 +19,7 @@ const router = express.Router();
 
 router.post('/', protect, createEvent);
 router.get('/', protect, getEvents);
-router.get('/user-events', protect, getUserEvents); // Added back
+router.get('/user-events', protect, getUserEvents); 
 router.get('/dashboard', protect, getDashboardEvents);
 router.get('/past', protect, getPastEvents);
 router.get('/nurse/next', protect, getNurseNextEvent);
