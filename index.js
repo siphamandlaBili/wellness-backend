@@ -28,6 +28,7 @@ app.use(cookieParser());
 const allowedOrigins = [
   'http://localhost:5173',
   'https://wellness-fmp.netlify.app',
+  'https://wellness-backend-kappa.vercel.app'
 ];
 
 app.use(
