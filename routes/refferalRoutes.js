@@ -3,10 +3,15 @@ import { Referral } from '../models/refferalModel.js';
 import { PatientFile } from '../models/patientFileModel.js';
 import  Event  from '../models/eventModel.js';
 import { protect } from '../middleware/authMiddleware.js';
-
+import { sendEmail } from "../utils/sendEmail.js";
+import { 
+  practitionerReferralEmail,
+  patientReferralEmail
+} from "../utils/EmailTemplate.js";
 const router = express.Router();
 
 // Create referral using ID Number
+// Update the referral creation route
 router.post('/', protect, async (req, res) => {
   try {
     const { idNumber, eventId, practitionerName, practitionerEmail, comments } = req.body;
@@ -48,6 +53,43 @@ router.post('/', protect, async (req, res) => {
       practitionerEmail,
       comments
     });
+
+    // Send emails to patient and practitioner
+    try {
+      // Email to patient
+      const patientEmailContent = patientReferralEmail(
+        `${patient.personalInfo.fullName} ${patient.personalInfo.surname}`,
+        practitionerName,
+        practitionerEmail,
+        comments,
+        referral.referralDate
+      );
+
+      await sendEmail({
+        to: patient.personalInfo.email, // Assuming email is stored in patient file
+        subject: `Your Referral to ${practitionerName}`,
+        html: patientEmailContent
+      });
+
+      // Email to practitioner
+      const practitionerEmailContent = practitionerReferralEmail(
+        practitionerName,
+        `${patient.personalInfo.fullName} ${patient.personalInfo.surname}`,
+        idNumber,
+        comments,
+        referral.referralDate
+      );
+
+      await sendEmail({
+        to: practitionerEmail,
+        subject: `New Patient Referral: ${patient.personalInfo.fullName} ${patient.personalInfo.surname}`,
+        html: practitionerEmailContent
+      });
+
+    } catch (emailError) {
+      console.error('Failed to send referral emails:', emailError);
+      // Don't fail the request if email fails, just log it
+    }
 
     res.status(201).json({
       success: true,

@@ -372,3 +372,84 @@ export const nurseAssignedEmail = (eventCode, eventName, eventDate, venue, nurse
     </div>
   `;
 };
+
+// New email templates for referrals
+export const patientReferralEmail = (patientName, practitionerName, practitionerEmail, comments, referralDate) => {
+  const formattedDate = new Date(referralDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #2d3748;">Your Health Referral</h1>
+      <p style="font-size: 16px; color: #4a5568;">
+        Dear ${patientName},
+      </p>
+      
+      <p style="font-size: 16px; color: #4a5568;">
+        Your healthcare provider has referred you to ${practitionerName} for further evaluation.
+      </p>
+      
+      <div style="background-color: #f7fafc; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #2d3748; margin-top: 0;">Referral Details</h3>
+        <p><strong>Practitioner:</strong> ${practitionerName}</p>
+        <p><strong>Contact:</strong> ${practitionerEmail}</p>
+        <p><strong>Referral Date:</strong> ${formattedDate}</p>
+        <p><strong>Reason for Referral:</strong> ${comments}</p>
+      </div>
+      
+      <p style="font-size: 16px; color: #4a5568;">
+        Please contact ${practitionerName}'s office to schedule an appointment at your earliest convenience.
+      </p>
+      
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+        <p style="font-size: 14px; color: #718096;">
+          If you have any questions about this referral, please contact your primary healthcare provider.
+        </p>
+      </div>
+    </div>
+  `;
+};
+
+export const practitionerReferralEmail = (practitionerName, patientName, patientIdNumber, comments, referralDate) => {
+  const formattedDate = new Date(referralDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #2d3748;">New Patient Referral</h1>
+      <p style="font-size: 16px; color: #4a5568;">
+        Dear Dr. ${practitionerName},
+      </p>
+      
+      <p style="font-size: 16px; color: #4a5568;">
+        You have received a new patient referral from our healthcare system.
+      </p>
+      
+      <div style="background-color: #f7fafc; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #2d3748; margin-top: 0;">Patient Details</h3>
+        <p><strong>Patient Name:</strong> ${patientName}</p>
+        <p><strong>ID Number:</strong> ${patientIdNumber}</p>
+        <p><strong>Referral Date:</strong> ${formattedDate}</p>
+        <p><strong>Reason for Referral:</strong> ${comments}</p>
+      </div>
+      
+      <p style="font-size: 16px; color: #4a5568;">
+        This patient has been notified of the referral and may contact your office to schedule an appointment.
+      </p>
+      
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+        <p style="font-size: 14px; color: #718096;">
+          Please log in to our healthcare portal for more detailed patient information.
+        </p>
+      </div>
+    </div>
+  `;
+};
