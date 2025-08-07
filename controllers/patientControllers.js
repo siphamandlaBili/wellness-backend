@@ -3,8 +3,8 @@ import  Event  from '../models/eventModel.js';
 import  User  from '../models/userModel.js';
 import bcrypt from 'bcryptjs';
 import { calculateBMI } from '../utils/bmiCalc.js';
-
-
+import { sendWelcomeEmail } from '../utils/EmailTemplate.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
 export const getPatientsByEvent = async (req, res) => {
     try {
@@ -93,7 +93,7 @@ export const createAndPostPatientData = async (req, res) => {
         // Generate temporary password
         const tempPassword = Math.random().toString(36).slice(-8);
         const hashedPassword = await bcrypt.hash(tempPassword, 12);
-
+        console.log(personalInfo)
         // Create patient user
         const user = new User({
             fullName: `${personalInfo.fullName} ${personalInfo.surname}`,
@@ -144,9 +144,33 @@ export const createAndPostPatientData = async (req, res) => {
             $push: { registeredPatients: patientFile._id }
         });
 
+        // Send welcome email with login credentials
+        try {
+            const emailContent = sendWelcomeEmail(
+                `${personalInfo.fullName} ${personalInfo.surname}`,
+                'patient',
+                req.user.fullName,
+                personalInfo.email,
+                tempPassword
+            );
+
+            await sendEmail({
+                to: personalInfo.email,
+                subject: 'Your Patient Portal Access',
+                html: emailContent
+            });
+
+            console.log('Welcome email sent successfully');
+        } catch (emailError) {
+            console.error('Failed to send welcome email:', emailError);
+            // Don't fail the whole request if email fails
+        }
+
         res.status(201).json({
             success: true,
-            data: patientFile
+            data: patientFile,
+            // Only include temporary password in development for debugging
+            tempPassword: process.env.NODE_ENV === 'development' ? tempPassword : undefined
         });
 
     } catch (error) {

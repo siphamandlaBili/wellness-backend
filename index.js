@@ -9,7 +9,7 @@ import reportRoutes from "./routes/reportRoutes.js";
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import cors from "cors";
-
+import superRoute from './routes/superadmin.js';
 dotenv.config(); 
 
 const app = express();
@@ -51,6 +51,7 @@ app.use('/api/v1/profile', profileRoutes);
 app.use('/api/v1/patients', patientsRoutes);
 app.use('/api/v1/refferals', refferalRoutes);
 app.use("/api/v1/reports", reportRoutes);
+app.use('/api/v1', superRoute);
 
 // Port number and MongoDB URI
 const port = process.env.PORT || 5000;
