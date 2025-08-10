@@ -240,3 +240,25 @@ export const getEventStatistics = async (req, res) => {
     });
   }
 };
+
+export const getDetailedReportForUser = async (req, res) => {
+  try {
+    // Extract parameters directly from req.params
+    const eventId = req.params.event;
+    const userId = req.params.user;
+    const patientsOnEvent = await PatientFile.find({ 
+      event: eventId
+    });
+    const eventNurseReport = await Report.find({ 
+      event: eventId
+    });
+    console.log(eventId)
+    
+    res.status(200).json({ patients: patientsOnEvent,nurseReport:eventNurseReport });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "right,but wrong"
+    });
+  }
+}

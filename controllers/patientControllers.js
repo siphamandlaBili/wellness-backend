@@ -31,11 +31,11 @@ export const getPatientsByEvent = async (req, res) => {
     }
 }
 
-export const getSinglePatient =    async (req, res) => {
+export const getSinglePatient = async (req, res) => {
     try {
       const patient = await PatientFile.findById(req.params.id)
         .populate('event', 'assignedNurse');
-  
+        console.log(patient,req.params.id)
       if (!patient) {
         return res.status(404).json({ 
           success: false, 
